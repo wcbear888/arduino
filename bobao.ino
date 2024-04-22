@@ -1,109 +1,72 @@
+#include <Servo.h>
+#include <BluetoothSerial.h>
+#include <EEPROM.h>
+BluetoothSerial SerialBT;
+TaskHandle_t Task1;
+Servo myservo;
+int servoPin = 16;
 
-int apin = 8;
-int bpin = 9;
-int cpin = 10;
-int dpin = 11;
-int delaytime = 10;
-int buttonpin =12;
-int fanpin =7;
-int buttonState =0;
-bool GotInitPosition = false;
-int updownDistince =55;
-int fanrate =5;
+int pos = 0;  // 定義舵機轉動位置
+byte delaytime = 10;
+
+
+void Task1_senddata(void* pvParameters) {
+  //無窮迴圈
+  for (;;) {
+    delay(10);
+    //BT
+    if (Serial.available()) {
+      SerialBT.write(Serial.read());
+    }
+    if (SerialBT.available()) {
+      auto str = SerialBT.readString();
+      if (str.c_str()[0] == '1')
+        //delaytime = atoi(SerialBT.readString().c_str());
+        //if (delaytime > 1000)
+        delaytime += 1 * str.length();
+      else if (str.c_str()[0] == '2')
+        delaytime -= 1 * str.length();
+      if (delaytime < 1)
+        delaytime = 1;
+      if (delaytime>100)
+      delaytime =100;
+      Serial.println(delaytime);
+      EEPROM.write(0, delaytime);
+      EEPROM.commit();
+    }
+  }
+}
 void setup() {
-  // put your setup code here, to run once:
-  pinMode(apin, OUTPUT);
-  pinMode(bpin, OUTPUT);
-  pinMode(cpin, OUTPUT);
-  pinMode(dpin, OUTPUT);
-  pinMode(buttonpin,INPUT);
-  pinMode (fanpin,OUTPUT);
-   
+  EEPROM.begin(1);
+  delaytime = EEPROM.read(0);
+  if (delaytime < 1)
+    delaytime = 1;
+  if (delaytime >100)
+  delaytime =100;
+  myservo.attach(servoPin);  // 設置舵機控制腳位
+  Serial.begin(9600);
+  SerialBT.begin("BEAR_BT");  //藍牙顯示名稱，可自行更改，需避免與他人重複命名
+
+
+  //在核心0啟動任務1
+  xTaskCreatePinnedToCore(
+    Task1_senddata, /*任務實際對應的Function*/
+    "Task1",        /*任務名稱*/
+    10000,          /*堆疊空間*/
+    NULL,           /*無輸入值*/
+    0,              /*優先序0*/
+    &Task1,         /*對應的任務變數位址*/
+    0);             /*指定在核心0執行 */
 }
-void MotorDown()
-{    digitalWrite(apin, HIGH);
-    delay(delaytime);
-    digitalWrite(apin, LOW);
-    digitalWrite(bpin, HIGH);
-    delay(delaytime);
-    digitalWrite(bpin, LOW);
-    digitalWrite(cpin, HIGH);
-    delay(delaytime);
-    digitalWrite(cpin, LOW);
-    digitalWrite(dpin, HIGH);
-    delay(delaytime);
-    digitalWrite(dpin, LOW);
-    }
-void MotorUp()
-{   
 
-
-    digitalWrite(dpin, HIGH);
-    delay(delaytime);
-    digitalWrite(dpin, LOW);
-        digitalWrite(cpin, HIGH);
-    delay(delaytime);
-    digitalWrite(cpin, LOW);
-    digitalWrite(bpin, HIGH);
-    delay(delaytime);
-    digitalWrite(bpin, LOW);
-       digitalWrite(apin, HIGH);
-    delay(delaytime);
-    digitalWrite(apin, LOW);
-
-    }
-void FanRun()
-{
-  for (int i=0;i<200;i++)
-  {
-    digitalWrite(fanpin, HIGH);
-    delay(fanrate);
-    digitalWrite(fanpin, LOW);
-    delay(11-fanrate);
-  }
-  digitalWrite(fanpin, LOW);
-  delay (100);
-}
 void loop() {
-  // put your main code here, to run repeatedly:
-  buttonState = digitalRead(buttonpin);
-  if (buttonState == LOW && GotInitPosition == false)
-  {
-   
-    MotorDown();
-  }else
-  {
-   GotInitPosition = true;
-   delaytime =3;
-    for (int i=0;i<10;i++)
-      {
-        MotorUp();
-      }
-  delay(2000);
-  }
-
-  if (GotInitPosition ==true)
-  {
-    while  (true)
-    {
-      for (int i=0;i<updownDistince;i++)
-      {
-        MotorUp();
-      }
-        delay(100);
-        FanRun();
-      for (int i=0;i<updownDistince;i++)
-      {
-        MotorDown();
-      }
-      delay(500);
-        buttonState = digitalRead(buttonpin);
-        if (buttonState == HIGH)
-        {
-          delaytime =20;
-          break;
-        }
-    }
-
-  }
+  // 0到180旋轉舵機，每次延時15毫秒
+  //for (pos = 0; pos < 180; pos += 10) {
+  // myservo.write(pos);
+  // delay(1);
+  //}
+  myservo.write(60);
+  delay(delaytime*100);
+  myservo.write(0);
+  delay(250);
 }
