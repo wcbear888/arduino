@@ -4,8 +4,8 @@
 BluetoothSerial SerialBT;
 TaskHandle_t Task1;
 Servo myservo;
-int servoPin = 16;
-
+int servoPin = 16;//GPIO 16 (RX2)
+int motorPin =23;
 int pos = 0;  // 定義舵機轉動位置
 byte delaytime = 10;
 
@@ -26,27 +26,41 @@ void Task1_senddata(void* pvParameters) {
         delaytime += 1 * str.length();
       else if (str.c_str()[0] == '2')
         delaytime -= 1 * str.length();
-      if (delaytime < 1)
-        delaytime = 1;
-      if (delaytime>100)
-      delaytime =100;
+      if (delaytime < 2)
+        delaytime = 2;
+      if (delaytime > 10)
+        delaytime = 10;
       Serial.println(delaytime);
       EEPROM.write(0, delaytime);
       EEPROM.commit();
+     
     }
   }
 }
 void setup() {
-  EEPROM.begin(1);
-  delaytime = EEPROM.read(0);
-  if (delaytime < 1)
-    delaytime = 1;
-  if (delaytime >100)
-  delaytime =100;
-  myservo.attach(servoPin);  // 設置舵機控制腳位
+  pinMode(motorPin, OUTPUT);
+    digitalWrite(motorPin, LOW); 
+  EEPROM.begin(1);  delaytime = EEPROM.read(0);
+  if (delaytime < 2)
+    delaytime = 2;
+  if (delaytime > 10)
+    delaytime = 10;
+    myservo.attach(servoPin);  // 設置舵機控制腳位
+      myservo.write(0);
+     
+    delay(200);
+    myservo.write(60);
+   
+    delay(200);  
+    myservo.write(0);
+   
+    delay(200);  
+ myservo.write(60);
+ 
+    delay(2000);  
   Serial.begin(9600);
   SerialBT.begin("BEAR_BT");  //藍牙顯示名稱，可自行更改，需避免與他人重複命名
-
+   digitalWrite(motorPin, HIGH); 
 
   //在核心0啟動任務1
   xTaskCreatePinnedToCore(
@@ -60,13 +74,13 @@ void setup() {
 }
 
 void loop() {
-  // 0到180旋轉舵機，每次延時15毫秒
-  //for (pos = 0; pos < 180; pos += 10) {
-  // myservo.write(pos);
-  // delay(1);
-  //}
+    digitalWrite(motorPin, HIGH); 
+     Serial.print("delay:");
+        Serial.println(delaytime);
   myservo.write(60);
-  delay(delaytime*100);
+  delay(delaytime * 1000);
+  
+  digitalWrite(motorPin, LOW); 
   myservo.write(0);
-  delay(250);
+  delay(200);
 }
